@@ -1,0 +1,390 @@
+% *************************************************************************
+% Shopping Time and Frictional Goods Markets:
+% Implications for the New-Keynesian Model
+% Textbook NK Model
+% -------------------------------------------------------------------------
+% Konstantin Gantert
+% Tilburg University
+% Department of Economics
+% k.gantert@tilburguniversity.edu
+% 04/08/2025
+% *************************************************************************
+% -------------------------------------------------------------------------
+% 1. Define Variables and Parameters
+% -------------------------------------------------------------------------
+
+var          // Aggregate variables
+                t, t_N          // Real final goods trades (GDP)
+                ivm, ivm_N      // Fixed-capital investment
+                km, km_N        // Capital stock
+                em, em_N        // Capital utilization rate
+                hm, hm_N        // Total hours worked
+                ue, ue_N        // Unemployment rate
+                cm, cm_N        // Real market consumption goods
+                ym, ym_N        // Production capacity
+                sm, sm_N        // Beginning-of-period available goods
+                cu, cu_N        // Capacity utilization rate
+
+             // Aggregate prices
+                piC             // Price inflation
+                piW             // Nominal wage inflation
+                w, w_N          // Real wage
+                r, r_N          // Nominal bond interest rate
+                rk, rk_N        // Real capital interest rate
+                mc, mc_N        // Real marginal cost
+                ps, ps_N        // Search goods price
+                pt, pt_N        // Total goods price
+                ped, ped_N      // Price elasticity of demand
+                lw, lw_N        // Labor wedge
+
+             // Adjustment costs
+                chm, chm_N      // Hours adjustment costs
+                chhm, chhm_N    // Marginal hours adjustment costs
+                cmi, cmi_N      // Investment adjustment costs
+                cmmi, cmmi_N    // Marginal investment adjustment costs
+                cp, cpp         // (Marginal) Nominal price adjustment costs
+                cw, cww         // (Marginal) Nominal wage adjustment costs
+
+             // Value functions
+                uC, uC_N        // Utility FOC wrt consumption
+                muc, muc_N      // Marginal utility of consumption
+                qk, qk_N        // Tobin'sm Q capital stock
+
+             // AR(1) shock processes
+                sA              // Total factor productivity
+                sZ              // Discount rate
+                sM              // Monetary policy
+                sP              // Cost-push
+                sT              // Goods market mismatch
+                sD              // Search effort
+
+             // Gap and observation variables
+                gdp_gap         // Output gap
+                cu_gap          // Utilization gap
+                ue_gap          // Unemployment gap
+                
+             // Observational variables
+                gdp_obs         // Log real GDP
+                h_obs           // Log total hours worked
+                mc_obs          // Log real marginal cost
+                w_obs           // Log real wage
+                ls_obs          // Log labor share
+                lpr_obs         // Log labor productivity
+                lw_obs          // Log labor wedge
+                hs_obs          // Log search effort
+                ped_obs         // Log price elasticity of demand
+                ;
+
+varexo          eA              // Technology Shock
+                eZ              // Discount Rate Shock
+                eM              // Monetary Policy Shock
+                eP              // Cost-Push Shock
+                eT              // Goods market mismatch shock
+                ;
+
+parameters      betta sig epss kapP
+                delM1 delM2 delM3 kapMI alpM
+                muM nuM epsW kapW phiHM
+                iR iPi iGap
+                stdA stdZ stdM stdP stdT
+                rhoA rhoZ rhoM rhoP rhoT
+                uss hmss ls_share markup nkpc_slope nkwpc_slope
+                ghh markup_stst nkpc_target ls_target labor_ext
+                ;
+
+// Goods market parameters
+    set_param_value('betta', par.betta);
+    set_param_value('sig', par.sig);
+    set_param_value('epss', par.epss);
+    set_param_value('kapP', par.kapP);
+// Capital parameters
+    set_param_value('alpM', par.alpM);
+    set_param_value('delM1', par.delM1);
+    set_param_value('delM2', par.delM2);
+    set_param_value('kapMI', par.kapMI);
+// Labor parameters
+    set_param_value('nuM', par.nuM);
+    set_param_value('epsW', par.epsW);
+    set_param_value('kapW', par.kapW);
+    set_param_value('phiHM', par.phiHM);
+// Monetary policy parameters
+    set_param_value('iR', par.iR);
+    set_param_value('iPi', par.iPi);
+    set_param_value('iGap', par.iGap);
+// Stochastic processes
+    set_param_value('stdA', shock.stdA);
+    set_param_value('stdZ', shock.stdZ);
+    set_param_value('stdM', shock.stdM);
+    set_param_value('stdP', shock.stdP);
+    set_param_value('stdT', shock.stdT);
+    set_param_value('rhoA', shock.rhoA);
+    set_param_value('rhoZ', shock.rhoZ);
+    set_param_value('rhoM', shock.rhoM);
+    set_param_value('rhoP', shock.rhoP);
+    set_param_value('rhoT', shock.rhoT);
+// Steady-state targets
+    set_param_value('uss', target.uss);
+    set_param_value('hmss', target.hmss);
+    set_param_value('ls_share', target.ls_share);
+    set_param_value('markup', target.markup);
+    set_param_value('nkpc_slope', target.nkpc_slope);
+    set_param_value('nkwpc_slope', target.nkwpc_slope);
+// Functional form selection
+    set_param_value('ghh', ghh_pref);
+    set_param_value('ls_target', ls_target);
+    set_param_value('markup_stst', markup_stst);
+    set_param_value('nkpc_target', nkpc_target);
+    set_param_value('labor_ext', labor_ext);
+
+%--------------------------------------------------------------------------
+% 2. MODEL BLOCK
+%--------------------------------------------------------------------------
+
+model;
+
+%--------------------------------------------------------------------------
+% 2.1 Goods Market Matching
+%--------------------------------------------------------------------------
+
+[name = 'Customer relationship law of motion']
+t       = sT*sm;
+t_N     = sT*sm_N;
+
+[name = 'Final goods usage']
+t       = cm   + ivm;
+t_N     = cm_N + ivm_N;
+
+[name = 'Capacity utilization rate']
+cu      = t   / (sA * hm^(1-alpM)*km(-1)^alpM);
+cu_N    = t_N / (sA * hm_N^(1-alpM)*km_N(-1)^alpM);
+
+[name = 'Unemployment rate']
+ue      = ( w/muM * muc/(ghh*uC+(1-ghh)) )^(1/nuM) * hm^(-1) - 1;
+ue_N    = ( w_N/muM * muc_N/(ghh*uC_N+(1-ghh)) )^(1/nuM) * hm_N^(-1) - 1;
+
+%--------------------------------------------------------------------------
+% 2.2 Constraints
+%--------------------------------------------------------------------------
+
+[name = 'Production capacity (Final goods)']
+ym      = sA * hm^(1-alpM)   * (em*km(-1))^alpM;
+ym_N    = sA * hm_N^(1-alpM) * (em_N*km_N(-1))^alpM;
+
+[name = 'Beginning-of-period available final goods']
+sm      = 1/(1+cp) * ym;
+sm_N    = ym_N;
+
+[name = 'Capital law of motion (Households)']
+km      = ( 1-delM1-delM2*delM3/2*(em-1)^2-delM3*(em-1) )     * km(-1)   + ivm*(1-cmi);
+km_N    = ( 1-delM1-delM2*delM3/2*(em_N-1)^2-delM3*(em_N-1) ) * km_N(-1) + ivm_N*(1-cmi_N);
+
+%--------------------------------------------------------------------------
+% 2.3 Households
+%--------------------------------------------------------------------------
+
+[name = 'Marginal utility of consumption']
+uC      = 1 / ( cm   - ghh*muM/(1+nuM)*hm^(1+nuM) )^sig;
+uC_N    = 1 / ( cm_N - ghh*muM/(1+nuM)*hm_N^(1+nuM) )^sig;
+
+[name = 'Marginal net utility of consumption']
+muc     = uC;
+muc_N   = uC_N;
+
+[name = 'Consumption Euler equation']
+muc     = betta*sZ(+1)/sZ * (1+r)/(1+piC(+1)) * muc(+1);
+muc_N   = betta*sZ(+1)/sZ * (1+r_N)           * muc_N(+1);
+
+#hac   = 1 - phiHM/2*(hm/hm(-1)-1)^2 - phiHM*(hm/hm(-1)-1)*hm/hm(-1)
+            + (1+piW(+1))/(1+r)*phiHM*(hm(+1)/hm-1)*(hm(+1)/hm)^2;
+#hac_N = 1 - phiHM/2*(hm_N/hm_N(-1)-1)^2 - phiHM*(hm_N/hm_N(-1)-1)*hm_N/hm_N(-1)
+            + 1/(1+r)*phiHM*(hm_N(+1)/hm_N-1)*(hm_N(+1)/hm_N)^2;
+[name = 'Labor Supply']
+ghh*muM*hm^nuM/muc*uC       + (1-ghh)*muM*hm^nuM/muc
+        = w/(epsW*hac^epsW)   * ((epsW*hac^epsW-1)*(1-cw)+cww-(1+piW(+1))/(1+r)*hm(+1)/hm*cww(+1));
+ghh*muM*hm_N^nuM/muc_N*uC_N + (1-ghh)*muM*hm_N^nuM/muc_N 
+        = w_N/(epsW*hac_N^epsW) * (epsW*hac_N^epsW-1);
+
+[name = 'Capital Supply']
+qk      = betta*sZ(+1)/sZ * ( muc(+1)*rk(+1)*em(+1)       + (1-delM1-delM2*delM3/2*(em(+1)-1)^2-delM3*(em(+1)-1))*qk(+1) );
+qk_N    = betta*sZ(+1)/sZ * ( muc_N(+1)*rk_N(+1)*em_N(+1) + (1-delM1-delM2*delM3/2*(em_N(+1)-1)^2-delM3*(em_N(+1)-1))*qk_N(+1) );
+
+[name = 'Capital Investment']
+uC      = qk*(1-cmi-cmmi)       + betta*sZ(+1)/sZ*cmmi(+1)*(ivm(+1)/ivm)^2*qk(+1);
+uC_N    = qk_N*(1-cmi_N-cmmi_N) + betta*sZ(+1)/sZ*cmmi_N(+1)*(ivm_N(+1)/ivm_N)^2*qk_N(+1);
+
+[name = 'Labor Supply']
+rk      = qk/muc     * (delM2*delM3*(em-1)+delM3);
+rk_N    = qk_N/muc_N * (delM2*delM3*(em_N-1)+delM3);
+
+%--------------------------------------------------------------------------
+% 2.4 Final Good Firms
+%--------------------------------------------------------------------------
+
+[name = 'Labor Demand (Firms)']
+w       = (1-alpM)*ym/hm     * (mc*sT);
+w_N     = (1-alpM)*ym_N/hm_N * (mc_N*sT);
+
+[name = 'Capital Demand (Firms)']
+rk      = alpM*ym/(em*km(-1))     * (mc*sT);
+rk_N    = alpM*ym_N/(em_N*km_N(-1)) * (mc_N*sT);
+
+[name = 'Price-Setting Equation (Firms)']
+cpp     = 1/mc*(1 - ((1-mc*(1+cp)))/(1/(epss*sP)))
+            + (1+piC(+1))/(1+r)*(t(+1)*mc(+1))/(t*mc)*cpp(+1);
+mc_N    = (epss*sP-1)/(epss*sP);
+
+%--------------------------------------------------------------------------
+% 2.5 Menu Cost
+%--------------------------------------------------------------------------
+
+[name = '(Marginal) Investment costs (capital firm)']
+cmi     = kapMI/2*(ivm/ivm(-1)-1)^2;
+cmmi    = kapMI*(ivm/ivm(-1)-1)*ivm/ivm(-1);
+cmi_N   = kapMI/2*(ivm_N/ivm_N(-1)-1)^2;
+cmmi_N  = kapMI*(ivm_N/ivm_N(-1)-1)*ivm_N/ivm_N(-1);
+
+[name = '(Marginal) Wage inflation adjustment costs']
+cw      = kapW/2*piW^2;
+cww     = kapW*piW*(1+piW);
+piW     = w/w(-1)*(1+piC) - 1;
+
+[name = '(Marginal) market hours adjustment costs']
+chm     = phiHM/2*(hm/hm(-1)-1)^2;
+chm_N   = phiHM/2*(hm_N/hm_N(-1)-1)^2;
+chhm    = phiHM*(hm/hm(-1)-1)*hm/hm(-1);
+chhm_N  = phiHM*(hm_N/hm_N(-1)-1)*hm_N/hm_N(-1);
+
+[name = '(Marginal) Price inflation adjustment costs']
+cp      = kapP/2*piC^2;
+cpp     = kapP*piC*(1+piC);
+
+%--------------------------------------------------------------------------
+% 2.5 Prices and Elasticities
+%--------------------------------------------------------------------------
+
+[name = 'Search goods price']
+ps      = 0;
+ps_N    = 0;
+
+[name = 'Total goods price']
+pt      = 1;
+pt_N    = 1;
+
+[name = 'Price elasticity of demand']
+ped     = (-epss*sP);
+ped_N   = (-epss*sP);
+
+#vphiW      = (1-cw)*(epsW*hac^epsW-1)/(epsW*hac^epsW) 
+                + (cww - (1+piW(+1))/(1+r)*hm(+1)/hm*cww(+1)) / (epsW*hac^epsW);
+#vphiW_N    = (epsW*hac_N^epsW-1)/(epsW*hac_N^epsW);
+[name = 'Labor wedge']
+lw      = 1 - vphiW*mc*em^alpM*muc/(ghh*uC+(1-ghh));
+lw_N    = 1 - vphiW_N*mc_N*em_N^alpM*muc_N/(ghh*uC_N+(1-ghh));
+
+%--------------------------------------------------------------------------
+% 2.6 Monetary Policy
+%--------------------------------------------------------------------------
+
+[name = 'Taylor rule']
+((1+r)/(1+steady_state(r))) 
+        = ((1+r(-1))/(1+steady_state(r)))^iR 
+            * (((1+piC)/(1+steady_state(piC)))^iPi)^(1-iR)
+            * ((1+gdp_gap)^iGap)^(1-iR)
+            * sM;
+
+%--------------------------------------------------------------------------
+% 2.7 Stochastic processes
+%--------------------------------------------------------------------------
+
+[name = 'Technology shock AR(1) process']
+log(sA) = rhoA*log(sA(-1)) + eA;
+
+[name = 'Discount rate shock AR(1) process']
+log(sZ) = rhoZ*log(sZ(-1)) + eZ;
+
+[name = 'Monetary policy shock AR(1) process']
+log(sM) = rhoM*log(sM(-1)) - eM;
+
+[name = 'Cost-Push shock AR(1) process']
+log(sP) = rhoP*log(sP(-1)) + eP;
+
+[name = 'Mismatch shock AR(1) process']
+log(sT) = rhoT*log(sT(-1)) + eT;
+
+[name = 'Search effort shock AR(1) process']
+log(sD) = 0;
+
+%--------------------------------------------------------------------------
+% 2.8 Gap and Observation Variables
+%--------------------------------------------------------------------------
+
+[name = 'Output Gap']
+gdp_gap = t / t_N - 1;
+
+[name = 'Capacity Utilization Gap']
+cu_gap  = cu / cu_N - 1;
+
+[name = 'Unemployment Gap']
+ue_gap  = (1+ue) / (1+ue_N) - 1;
+
+[name = 'Log Real GDP']
+gdp_obs = log(t);
+
+[name = 'Log Total Hours Worked']
+h_obs   = log(hm);
+
+[name = 'Log Real Wage']
+w_obs   = log(w);
+
+[name = 'Log Real Marginal Costs']
+mc_obs  = log(mc);
+
+[name = 'Log Labor Share']
+ls_obs  = log(w*hm/t);
+
+[name = 'Log Labor Productivity']
+lpr_obs = log(t/hm);
+
+[name = 'Log Labor Wedge']
+lw_obs  = log(lw);
+
+[name = 'Log Search Hours']
+hs_obs  = log(1);
+
+[name = 'Log Price Elasticity of Demand']
+ped_obs = log(ped/steady_state(ped));
+
+end;
+
+%--------------------------------------------------------------------------
+% 3. CHECK STEADY-STATES AND MODEL SETUP
+%--------------------------------------------------------------------------
+
+//check;
+//resid;
+
+%--------------------------------------------------------------------------
+% 4. SIMULATION
+%--------------------------------------------------------------------------
+
+shocks;
+    var eA      = stdA^2;
+    var eZ      = stdZ^2;
+    var eM      = stdM^2;
+    var eP      = stdP^2;
+    var eT      = stdT^2;
+end;
+
+stoch_simul(nodisplay,
+            nograph,
+            noprint,
+            pruning,
+            order=@{approx_order},
+            irf=@{irf_periods},
+            periods=@{sim_periods},
+            replic=@{replic_number},
+            simul_replic=@{simul_replic_number},
+            drop=@{drop_number}
+            );
+
+%----------------------------- End of File --------------------------------
